@@ -1,0 +1,324 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Sahara Summit API",
+        "description": "API Documentation for Event App",
+        "contact": {
+            "email": "support@saharasummit.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local Server"
+        }
+    ],
+    "paths": {
+        "/api/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login and get Token",
+                "operationId": "222b2625838e3c57e017987f73598fda",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "example": "sarah@visitor.ma"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        },
+        "/api/me": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get User Profile",
+                "operationId": "8367feff40ba10e43187792cad3132c1",
+                "responses": {
+                    "200": {
+                        "description": "User Data"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke Token",
+                "operationId": "ad65cbbd4e9f201619eae184a5961a98",
+                "responses": {
+                    "200": {
+                        "description": "Logged out"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/event/active": {
+            "get": {
+                "tags": [
+                    "Content"
+                ],
+                "summary": "Get Main Event Details",
+                "operationId": "c028cd847da0e0bf8ce0237c28068568",
+                "responses": {
+                    "200": {
+                        "description": "Event Info"
+                    }
+                }
+            }
+        },
+        "/api/exhibitors": {
+            "get": {
+                "tags": [
+                    "Content"
+                ],
+                "summary": "List Exhibitors",
+                "operationId": "ffc5e80f73f20e580bcab539136bc6c1",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of Companies"
+                    }
+                }
+            }
+        },
+        "/api/agenda": {
+            "get": {
+                "tags": [
+                    "Content"
+                ],
+                "summary": "Full Conference Agenda",
+                "operationId": "7699f9ea9926f9514dc4fd9474a4bc76",
+                "responses": {
+                    "200": {
+                        "description": "List of Conferences"
+                    }
+                }
+            }
+        },
+        "/api/my-agenda": {
+            "get": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Get My Schedule",
+                "operationId": "5126834f2d36fcacbcf26d8dea117b8e",
+                "responses": {
+                    "200": {
+                        "description": "List of booked items"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attend-conference": {
+            "post": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Join a Conference",
+                "operationId": "3f555919f57877b994d966bc0a196eb9",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "conference_id": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successfully added to agenda"
+                    },
+                    "409": {
+                        "description": "Already registered"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/book-meeting": {
+            "post": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Request B2B Meeting",
+                "operationId": "9af68c387ad67ea1791df2086e3c7750",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "company_id": {
+                                        "type": "integer"
+                                    },
+                                    "scheduled_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "notes": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Meeting request sent"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/appointments/{id}": {
+            "delete": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Cancel Appointment",
+                "operationId": "bb4393a9f4f0add19cd5c232d27a8157",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Appointment cancelled"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/contact": {
+            "post": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Contact Support",
+                "operationId": "6ac90fb1a27891708189ebc52c248f45",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "subject": {
+                                        "type": "string"
+                                    },
+                                    "message": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Message sent"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Auth"
+        },
+        {
+            "name": "Content",
+            "description": "Content"
+        },
+        {
+            "name": "User Actions",
+            "description": "User Actions"
+        }
+    ]
+}
