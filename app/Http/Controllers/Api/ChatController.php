@@ -96,12 +96,15 @@ class ChatController extends Controller
      * POST /api/chat/send
      * Send text or file.
      */
+    // ChatController.php - Update send() validation
+
     public function send(Request $request)
     {
         $request->validate([
             'receiver_id' => 'required|exists:users,id',
             'content'     => 'nullable|string',
-            'file'        => 'nullable|file|max:10240', // Max 10MB
+            'file'        => 'nullable|file|max:51200|mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,mp3,wav,pdf,doc,docx,txt',
+            // 50MB max, supports images, videos, audio, documents
         ]);
 
         if (!$request->content && !$request->hasFile('file')) {
@@ -110,9 +113,18 @@ class ChatController extends Controller
 
         $path = null;
         if ($request->hasFile('file')) {
-            // Save to 'public/chat_files'
-            $path = $request->file('file')->store('chat_files', 'public');
-            $path = asset('storage/' . $path); // Generate full URL
+            $file = $request->file('file');
+
+            // Organize by type
+            $folder = match(true) {
+                str_starts_with($file->getMimeType(), 'image/') => 'chat_files/images',
+                str_starts_with($file->getMimeType(), 'video/') => 'chat_files/videos',
+                str_starts_with($file->getMimeType(), 'audio/') => 'chat_files/audio',
+                default => 'chat_files/documents'
+            };
+
+            $path = $file->store($folder, 'public');
+            $path = asset('storage/' . $path);
         }
 
         $message = Message::create([

@@ -10,115 +10,111 @@ use App\Notifications\NewConnectionRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
 
 class NetworkingController extends Controller
 {
     /**
      * TAB 1: Discover
-     * Users I have NO relationship with
+     * Users I have NO relationship with (Optimized)
      */
     public function discover(Request $request): JsonResponse
     {
         $authId = Auth::id();
 
-        /**
-         * 1. EXCLUSION LIST
-         * Get IDs of people I am already connected with (Pending, Accepted, Declined)
-         * + My Own ID
-         */
-        $excludedIds = Connection::where('requester_id', $authId)
+        // 1. OPTIMIZATION: Use pluck() instead of get() to save memory.
+        // Get IDs where I am the requester OR the target.
+        $connectedIds = Connection::query()
+            ->where('requester_id', $authId)
             ->orWhere('target_id', $authId)
-            ->get()
-            ->map(fn ($c) => $c->requester_id === $authId ? $c->target_id : $c->requester_id)
-            ->push($authId)
-            ->toBase()   // 👈 key line
+            ->get(['requester_id', 'target_id']) // Select only needed columns
+            ->flatMap(fn ($c) => [$c->requester_id, $c->target_id])
             ->unique()
-            ->values()
+            ->push($authId) // Exclude myself
             ->all();
 
-
-        /**
-         * 2. BASE QUERY
-         * 'with(company)' will return null for Visitors, which is fine.
-         * Ensure your User model does NOT have a 'has("company")' global scope.
-         */
+        // 2. Build Query
         $query = User::with('company')
-            ->whereNotIn('id', $excludedIds)
+            ->whereNotIn('id', $connectedIds)
             ->where('is_visible', true);
 
-        /**
-         * 3. SEARCH LOGIC
-         * Improved to search by Job Title (important for Visitors).
-         */
+        // 3. Search Logic
         if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('job_title', 'like', "%{$search}%") // ✅ Added for Visitors
-                    ->orWhereHas('company', fn ($c) =>
-                    $c->where('name', 'like', "%{$search}%")
-                    );
+                    ->orWhere('job_title', 'like', "%{$search}%")
+                    ->orWhereHas('company', fn ($c) => $c->where('name', 'like', "%{$search}%"));
             });
         }
 
-        // 4. ORDERING & PAGINATION
-        // Random order is good for discovery, or order by created_at
+        // 4. Random order allows for better discovery, or use latest
         return response()->json(
-            $query->orderBy('created_at', 'desc')->paginate(20)
+            $query->inRandomOrder()->paginate(20)
         );
     }
 
     /**
      * TAB 2: My Network
+     * Fixed duplicate user issue
      */
     public function myNetwork(): JsonResponse
     {
         $authId = Auth::id();
 
         /**
-         * Incoming pending requests (they sent → me)
+         * 1. Incoming (They sent -> Me)
          */
-        $incoming = Connection::where('target_id', $authId)
+        $incoming = Connection::with('requester.company')
+            ->where('target_id', $authId)
             ->where('status', 'pending')
-            ->with('requester.company')
             ->get()
             ->map(function ($c) {
                 $user = $c->requester;
                 $user->connection_status = 'incoming';
+                $user->connection_id = $c->id; // Useful for UI actions
                 return $user;
-            });
+            })
+            ->unique('id') // 🛡️ Fix: Prevent duplicates
+            ->values();
 
         /**
-         * Outgoing pending requests (I sent → them)
+         * 2. Outgoing (I sent -> Them)
          */
-        $outgoing = Connection::where('requester_id', $authId)
+        $outgoing = Connection::with('target.company')
+            ->where('requester_id', $authId)
             ->where('status', 'pending')
-            ->with('target.company')
             ->get()
             ->map(function ($c) {
                 $user = $c->target;
                 $user->connection_status = 'outgoing';
+                $user->connection_id = $c->id;
                 return $user;
-            });
+            })
+            ->unique('id') // 🛡️ Fix: Prevent duplicates
+            ->values();
 
         /**
-         * Accepted connections
+         * 3. Accepted (Bidirectional)
          */
-        $accepted = Connection::where('status', 'accepted')
+        $accepted = Connection::with(['requester.company', 'target.company'])
+            ->where('status', 'accepted')
             ->where(function ($q) use ($authId) {
                 $q->where('requester_id', $authId)
                     ->orWhere('target_id', $authId);
             })
-            ->with(['requester.company', 'target.company'])
             ->get()
             ->map(function ($c) use ($authId) {
-                $user = $c->requester_id === $authId
-                    ? $c->target
-                    : $c->requester;
+                // Determine which user is the "other" person
+                $isRequesterMe = $c->requester_id === $authId;
+                $user = $isRequesterMe ? $c->target : $c->requester;
 
                 $user->connection_status = 'accepted';
+                $user->connection_id = $c->id;
                 return $user;
-            });
+            })
+            ->unique('id') // 🛡️ Fix: Prevents "Same User Twice" if DB has dirty data
+            ->values();
 
         return response()->json([
             'incoming_requests' => $incoming,
@@ -133,50 +129,54 @@ class NetworkingController extends Controller
     public function toggleConnection(Request $request): JsonResponse
     {
         $request->validate([
-            'target_id' => 'required|exists:users,id',
-            'action'    => 'required|in:connect,accept,decline,cancel',
+            'target_id' => 'required|integer|exists:users,id',
+            'action'    => 'required|string|in:connect,accept,decline,cancel',
         ]);
 
         $authId   = Auth::id();
         $targetId = (int) $request->target_id;
-        $user     = Auth::user(); // Me
+        $user     = Auth::user();
 
         if ($authId === $targetId) {
-            return response()->json(['error' => 'Cannot connect to yourself'], 422);
+            return response()->json(['message' => 'Cannot connect to yourself'], 422);
         }
 
+        // Handle Actions
         switch ($request->action) {
-
             case 'connect':
-                // 1. Create Connection
-                $connection = Connection::firstOrCreate(
-                    [
+                // Check if ANY connection exists (pending or accepted) to prevent duplicates
+                $exists = Connection::where(function($q) use ($authId, $targetId){
+                    $q->where('requester_id', $authId)->where('target_id', $targetId);
+                })->orWhere(function($q) use ($authId, $targetId){
+                    $q->where('requester_id', $targetId)->where('target_id', $authId);
+                })->exists();
+
+                if (!$exists) {
+                    $conn = Connection::create([
                         'requester_id' => $authId,
                         'target_id'    => $targetId,
-                    ],
-                    ['status' => 'pending']
-                );
+                        'status'       => 'pending'
+                    ]);
 
-                // 2. Notify Target (Only if it's a new request)
-                if ($connection->wasRecentlyCreated) {
-                    $target = User::find($targetId);
-                    if ($target) {
-                        $target->notify(new NewConnectionRequest($user));
+                    // Notify Target
+                    $targetUser = User::find($targetId);
+                    if ($targetUser) {
+                        $targetUser->notify(new NewConnectionRequest($user));
                     }
                 }
                 break;
 
             case 'accept':
-                // 1. Find the request sent TO me
+                // Find the specific pending request sent TO me
                 $connection = Connection::where('requester_id', $targetId)
                     ->where('target_id', $authId)
+                    ->where('status', 'pending')
                     ->first();
 
-                if ($connection && $connection->status !== 'accepted') {
-                    // 2. Update Status
+                if ($connection) {
                     $connection->update(['status' => 'accepted']);
 
-                    // 3. Notify the Original Requester
+                    // Notify Requester
                     $requester = User::find($targetId);
                     if ($requester) {
                         $requester->notify(new ConnectionAccepted($user));
@@ -185,27 +185,21 @@ class NetworkingController extends Controller
                 break;
 
             case 'decline':
+                // Delete request sent TO me
+                Connection::where('requester_id', $targetId)
+                    ->where('target_id', $authId)
+                    ->delete();
+                break;
+
             case 'cancel':
-                Connection::where(function ($q) use ($authId, $targetId) {
-                    $q->where('requester_id', $authId)->where('target_id', $targetId);
-                })->orWhere(function ($q) use ($authId, $targetId) {
-                    $q->where('requester_id', $targetId)->where('target_id', $authId);
-                })->delete();
+                // Delete request sent BY me
+                Connection::where('requester_id', $authId)
+                    ->where('target_id', $targetId)
+                    ->where('status', 'pending')
+                    ->delete();
                 break;
         }
 
-        return response()->json(['status' => 'success']);
-    }
-
-    /**
-     * Legacy list (fallback / old clients)
-     */
-    public function index(): JsonResponse
-    {
-        return response()->json(
-            User::with('company')
-                ->where('id', '!=', Auth::id())
-                ->paginate(20)
-        );
+        return response()->json(['message' => 'Action successful']);
     }
 }
