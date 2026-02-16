@@ -60,3 +60,37 @@ jobs:
             vendor
             public/build
             bootstrap/cache
+            
+      # Backup prod branch
+      - name: Backup prod branch
+        run: |
+          git fetch origin prod
+          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+          git checkout prod
+          git checkout -b prod-backup-$TIMESTAMP
+          git push origin prod-backup-$TIMESTAMP
+          
+      # Deploy to prod branch
+      - name: Deploy to prod branch
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git checkout --orphan prod
+          git rm -rf .
+
+          cp -r vendor vendor
+          cp -r public public
+          cp -r bootstrap bootstrap
+          cp -r app app
+          cp -r config config
+          cp -r database database
+          cp -r resources resources
+          cp -r routes routes
+          cp artisan artisan
+          cp composer.json composer.json
+          cp composer.lock composer.lock
+
+          git add .
+          git commit -m "Deploy build from main"
+          git push origin prod --force
