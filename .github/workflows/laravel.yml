@@ -61,28 +61,35 @@ jobs:
             public/build
             bootstrap/cache
             
-      # Backup prod branch
-      - name: Backup prod branch
-        run: |
-          git fetch origin prod
-          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-          git checkout prod
-          git checkout -b prod-backup-$TIMESTAMP
-          git push origin prod-backup-$TIMESTAMP
-          
-      # Deploy to prod branch
       - name: Deploy to prod branch
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
 
-          # Delete local prod if exists
-          git branch -D prod || true
+          # Fetch prod in case it exists
+          git fetch origin prod || true
 
+          # Backup prod
+          if git show-ref --verify --quiet refs/heads/prod; then
+            TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+            git checkout prod
+            git checkout -b prod-backup-$TIMESTAMP
+            git push origin prod-backup-$TIMESTAMP
+          fi
+
+          # Return to main to copy files
+          git checkout main
+
+          # Prepare a temporary directory for prod branch
+          mkdir ../prod-temp
+          cp -r app bootstrap config database public resources routes artisan composer.json composer.lock vendor ../prod-temp/
+
+          # Switch to prod branch
           git checkout --orphan prod
           git rm -rf .
-          
-          rsync -a vendor public bootstrap app config database resources routes artisan composer.json composer.lock ./ 
+
+          # Copy files from temp
+          cp -r ../prod-temp/* ./
 
           git add .
           git commit -m "Deploy build from main"
