@@ -72,6 +72,8 @@ jobs:
           if git ls-remote --exit-code --heads origin prod; then
             echo "Branch prod exists"
 
+            git fetch origin prod:refs/remotes/origin/prod
+
             TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 
             # Create backup branch directly from remote prod
