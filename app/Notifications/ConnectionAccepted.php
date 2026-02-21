@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Notifications;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Notification;
+use App\Channels\AppDatabaseChannel;
+use App\Channels\FcmChannel;
+use App\Models\User;
+
+class ConnectionAccepted extends Notification
+{
+    use Queueable;
+
+    public $accepter;
+
+    public function __construct(User $accepter)
+    {
+        $this->accepter = $accepter;
+    }
+
+    public function via($notifiable)
+    {
+        // Added FcmChannel::class here
+        return [AppDatabaseChannel::class, FcmChannel::class];
+    }
+
+    public function toApp($notifiable)
+    {
+        return [
+            'title' => 'Connection Accepted! 🤝',
+            'body'  => "You are now connected with {$this->accepter->name}. Start chatting!",
+            'type'  => 'success',
+            'data'  => [
+                'screen' => '/chat',
+                'arg'    => (string)$this->accepter->id,
+                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+            ]
+        ];
+    }
+
+    // Firebase Cloud Messaging Payload
+    public function toFcm($notifiable)
+    {
+        return [
+            'title' => 'Connection Accepted! 🤝',
+            'body'  => "You are now connected with {$this->accepter->name}. Start chatting!",
+            'data'  => [
+                'screen' => '/chat',
+                'arg'    => (string)$this->accepter->id,
+                'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
+            ]
+        ];
+    }
+}

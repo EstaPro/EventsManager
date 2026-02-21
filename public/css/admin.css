@@ -1,0 +1,90 @@
+/* 1. IMPORT MODERN FONT (Inter) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body, .h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* 2. SOFTEN THE UI (Cards & Containers) */
+.bg-white, .card {
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important; /* Soft Shadow */
+    margin-bottom: 24px;
+}
+
+/* Remove default borders from tables for a cleaner look */
+.table-bordered {
+    border: none !important;
+}
+.table-bordered td, .table-bordered th {
+    border: 1px solid #f2f4f7 !important; /* Very light gray */
+}
+
+/* 3. MODERNIZE BUTTONS */
+.btn {
+    border-radius: 10px !important;
+    font-weight: 500;
+    padding: 10px 20px;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+    background-color: #2563eb !important; /* Modern Royal Blue */
+    border-color: #2563eb !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
+}
+
+/* 4. FORM INPUTS */
+.form-control {
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0;
+    padding: 12px 15px;
+    background-color: #f8fafc; /* Slight off-white background */
+}
+
+.form-control:focus {
+    background-color: #fff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* 5. SIDEBAR & MENU */
+.aside {
+    background: #0f172a !important; /* Deep Navy Blue */
+}
+
+.aside .nav-link {
+    border-radius: 8px;
+    margin: 4px 10px;
+    color: #94a3b8 !important;
+}
+
+.aside .nav-link.active, .aside .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+/* Badges in Menu */
+.badge {
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* 6. METRICS & DASHBOARD */
+.text-muted {
+    color: #64748b !important; /* Better contrast gray */
+}
+
+.text-success {
+    color: #10b981 !important; /* Modern Emerald Green */
+}
+
+.text-danger {
+    color: #ef4444 !important; /* Modern Red */
+}

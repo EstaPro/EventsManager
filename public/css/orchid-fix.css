@@ -1,0 +1,26 @@
+/* Lock page scroll */
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Main Orchid layout wrapper */
+.layout {
+    height: 100vh;
+    display: flex;
+}
+
+/* Sidebar */
+.orchid-menu {
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Content area */
+.layout-content {
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
