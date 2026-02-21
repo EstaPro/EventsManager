@@ -72,15 +72,15 @@ jobs:
           git fetch origin prod || true
 
           # Backup prod
-          if git show-ref --verify --quiet prod; then
+          #if git show-ref --verify --quiet prod; then
             echo "Branch prod exists"
             TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
             git checkout prod
             git checkout -b prod-backup-$TIMESTAMP
             git push origin prod-backup-$TIMESTAMP
-          else
-              echo "Branch prod does not exist"
-          fi
+          #else
+          #    echo "Branch prod does not exist"
+          #fi
 
           # Return to main to copy files
           git checkout main
