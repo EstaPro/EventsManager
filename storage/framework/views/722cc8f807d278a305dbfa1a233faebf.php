@@ -1,0 +1,1 @@
+<?php /**PATH /home/runner/work/EventsManager/EventsManager/resources/views/orchid/content/widget-info.blade.php ENDPATH**/ ?>
